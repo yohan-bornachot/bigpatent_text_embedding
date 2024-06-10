@@ -1,0 +1,7 @@
+TRAIN:
+  MODEL_NAME: sentence-transformers/all-mpnet-base-v2
+  N_EPOCHS: 3
+  BATCH_SIZE: 8
+  USE_DETERMINISTIC_ALGORITHMS: False
+  SEED: 100
+  TRAIN_VAL_SPLIT: [0.8, 0.1]
