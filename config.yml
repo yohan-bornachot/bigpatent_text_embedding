@@ -1,5 +1,6 @@
 TRAIN:
   MODEL_NAME: infgrad/stella-base-en-v2  # sentence-transformers/all-mpnet-base-v2  #gte-base-en-v1.5
+  MODEL_CACHE_DIR: ../data/
   N_EPOCHS: 3
   BATCH_SIZE: 8
   INIT_LEARNING_RATE: 0.00005  # 5e-5

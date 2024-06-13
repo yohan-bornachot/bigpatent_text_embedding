@@ -2,6 +2,7 @@ from argparse import ArgumentParser
 from datetime import datetime
 import numpy as np
 import os
+import pickle
 import time
 import torch.nn.functional as F
 import torch
@@ -16,7 +17,7 @@ from patent_dataset import PatentDataset
 from utils import add_attr_interface
 
 
-def train(cfg_path: str, data_path: str, output_dir: str, device: str):
+def train(cfg_path: str, data_path: str, output_dir: str, device: str, model_cache_dir: str = None):
     
     # Load config
     with open(cfg_path, "r") as yml_file:
@@ -40,8 +41,8 @@ def train(cfg_path: str, data_path: str, output_dir: str, device: str):
     np.random.seed(seed)
        
     # Load the tokenizer and model
-    tokenizer = AutoTokenizer.from_pretrained(cfg.TRAIN.MODEL_NAME)
-    model = AutoModel.from_pretrained(cfg.TRAIN.MODEL_NAME).to(device)
+    tokenizer = AutoTokenizer.from_pretrained(cfg.TRAIN.MODEL_NAME, cache_dir=model_cache_dir)
+    model = AutoModel.from_pretrained(cfg.TRAIN.MODEL_NAME, cache_dir=model_cache_dir).to(device)
     
     # Create the dataset and dataloader
     dataset = PatentDataset(data_path)
@@ -50,6 +51,9 @@ def train(cfg_path: str, data_path: str, output_dir: str, device: str):
     split_train = int(np.floor(train_ratio * len(dataset)))
     split_val = int(np.floor((train_ratio + val_ratio) * len(dataset)))
     train_indices, val_indices = indices[:split_train], indices[split_train: split_val]
+    with open(os.path.join(os.path.dirname(data_path), "indices_split.pkl"), 'wb') as pkl_file:
+        indices_dict = {"train_indices": train_indices, "val_indices": val_indices, "test_indices": indices[split_val:]}
+        pickle.dump(indices_dict, pkl_file)
     train_sampler = SubsetRandomSampler(train_indices, torch_gen)
     val_sampler = SubsetRandomSampler(val_indices, torch_gen)
     train_loader = DataLoader(dataset, cfg.TRAIN.BATCH_SIZE, sampler=train_sampler, num_workers=2)
@@ -63,10 +67,10 @@ def train(cfg_path: str, data_path: str, output_dir: str, device: str):
         
         # Epoch training
         epoch_train_loss = 0
-        for i_batch, (query, positive, negative) in enumerate(train_loader):
+        for i_batch, (query, negative, positive) in enumerate(train_loader):
             start_batch = time.time()
             
-             # Tokenize and get embeddings
+            # Tokenize and get embeddings
             query_inputs = tokenizer(query, padding=True, truncation=True, return_tensors="pt").to(device)
             positive_inputs = tokenizer(positive, padding=True, truncation=True, return_tensors="pt").to(device)
             negative_inputs = tokenizer(negative, padding=True, truncation=True, return_tensors="pt").to(device)
@@ -92,7 +96,7 @@ def train(cfg_path: str, data_path: str, output_dir: str, device: str):
         val_losses = 0
         model.eval()  # Switch to model eval mode
         start_batch = time.time()
-        for i_batch, (query, positive, negative) in enumerate(val_loader):
+        for i_batch, (query, negative, positive) in enumerate(val_loader):
             with torch.no_grad():
                 
                 # Tokenize and get embeddings
@@ -128,7 +132,9 @@ if __name__ == "__main__":
     parser.add_argument("--data_path", "-i", type=str, required=True, help="Path to data (expects a .json file)")
     parser.add_argument("--output_dir", "-o", type=str, required=True, help="Path to save outputs")
     parser.add_argument("--device", "-d", type=str, default="cuda:0", help="Device to use for computations")
+    parser.add_argument("--cache_dir", "-m", type=str, required=False, help="Directory where to cache models "
+                                                                            "when loading from HuggingFace")
     args = parser.parse_args()
     
-    train(args.cfg_path, args.data_path, args.output_dir, args.device)
+    train(args.cfg_path, args.data_path, args.output_dir, args.device, args.cache_dir)
     
