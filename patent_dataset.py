@@ -15,4 +15,4 @@ class PatentDataset(Dataset):
         return len(self.df)
     
     def __getitem__(self, idx):
-        return self.df.iloc[idx].tolist()
+        return self.df.iloc[idx].tolist()  # query, negative, positive
