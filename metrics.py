@@ -47,8 +47,8 @@ def visualize_similarity_distrib(metrics: dict):
     
     # Plot the distribution of positive and negative similarities
     plt.figure(figsize=(12, 6))
-    sns.histplot(metrics['pos_similarities'], bins=50, color='blue', label='Positive Similarity', kde=True)
-    sns.histplot(metrics['neg_similarities'], bins=50, color='green', label='Negative Similarity', kde=True)
+    sns.histplot(metrics['pos_similarities'], bins=50, color='green', label='Positive Similarity', kde=True)
+    sns.histplot(metrics['neg_similarities'], bins=50, color='red', label='Negative Similarity', kde=True)
     plt.title('Distribution of Similarity Scores')
     plt.xlabel('Similarity Score')
     plt.ylabel('Frequency')
