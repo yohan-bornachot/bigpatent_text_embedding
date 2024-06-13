@@ -24,6 +24,7 @@ def compute_metrics(query_embeddings, positive_embeddings, negative_embeddings):
     mrr_score = mean_reciprocal_rank(pos_similarities, neg_similarities)
     print(f"MRR Score: {mrr_score}")
     
+    # Get similarities for corresponding pairs
     pos_similarities = pos_similarities.diagonal()
     neg_similarities = neg_similarities.diagonal()
 
@@ -42,23 +43,14 @@ def compute_metrics(query_embeddings, positive_embeddings, negative_embeddings):
     return metrics
 
 
-def plot_metrics(metrics: dict):
+def visualize_similarity_distrib(metrics: dict):
     
     # Plot the distribution of positive and negative similarities
     plt.figure(figsize=(12, 6))
     sns.histplot(metrics['pos_similarities'], bins=50, color='blue', label='Positive Similarity', kde=True)
-    sns.histplot(metrics['neg_similarities'], bins=50, color='red', label='Negative Similarity', kde=True)
+    sns.histplot(metrics['neg_similarities'], bins=50, color='green', label='Negative Similarity', kde=True)
     plt.title('Distribution of Similarity Scores')
     plt.xlabel('Similarity Score')
     plt.ylabel('Frequency')
     plt.legend()
     plt.show()
-
-    # Bar plot for overall accuracy
-    plt.figure(figsize=(6, 4))
-    sns.barplot(x=['Accuracy'], y=[metrics['accuracy']])
-    plt.title('Zero-Shot Accuracy')
-    plt.ylabel('Accuracy')
-    plt.ylim(0, 1)
-    plt.show()
-    

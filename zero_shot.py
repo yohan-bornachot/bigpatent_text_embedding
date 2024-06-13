@@ -4,7 +4,7 @@ import torch
 import yaml
 
 from patent_dataset import PatentDataset
-from metrics import compute_metrics, plot_metrics
+from metrics import compute_metrics, visualize_similarity_distrib
 from utils import add_attr_interface
 from transformers import AutoTokenizer, AutoModel
 
@@ -57,5 +57,5 @@ if __name__ == "__main__":
     query_embeddings, positive_embeddings, negative_embeddings = do_zero_shot(tokenizer, model, dataset.df, cfg.DATA.BATCH_SIZE)
     metrics = compute_metrics(query_embeddings, positive_embeddings, negative_embeddings)
     print("metrics = ", metrics )
-    plot_metrics(metrics)
+    visualize_similarity_distrib(metrics)
     
