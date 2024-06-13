@@ -22,7 +22,7 @@ def train(cfg_path: str, data_path: str, output_dir: str, device: str):
     with open(cfg_path, "r") as yml_file:
         cfg = add_attr_interface(yaml.safe_load(yml_file))
 
-    # Configuration and settings
+    # Outputs configuration and settings
     dt = datetime.now()
     date_dir_name = f"{dt.year}_{dt.month:02d}_{dt.day:02d}-{dt.hour:02d}h{dt.minute:02d}_{cfg.TRAIN.MODEL_NAME.split('/')[-1]}"
     output_path = os.path.join(output_dir, date_dir_name)
@@ -57,7 +57,7 @@ def train(cfg_path: str, data_path: str, output_dir: str, device: str):
     print(f"[train] - nb batches for train: {len(train_loader)}; nb batches for validation: {len(val_loader)}")
 
     # Fine-tuning setup
-    optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.TRAIN.INIT_LEARNING_RATE)
 
     for epoch in range(cfg.TRAIN.N_EPOCHS):  # Number of epochs
         
@@ -75,30 +75,24 @@ def train(cfg_path: str, data_path: str, output_dir: str, device: str):
             positive_emb = model(**positive_inputs).last_hidden_state.mean(dim=1)
             negative_emb = model(**negative_inputs).last_hidden_state.mean(dim=1)
 
-            # Compute loss
-            pos_sim = F.cosine_similarity(query_emb, positive_emb, dim=-1)
-            neg_sim = F.cosine_similarity(query_emb, negative_emb, dim=-1)
-
-            train_loss = torch.nn.functional.margin_ranking_loss(pos_sim, neg_sim, target=torch.ones_like(pos_sim), margin=0.1)
+            train_loss = F.triplet_margin_loss(query_emb, positive_emb, negative_emb, **cfg.TRAIN.LOSS)
             epoch_train_loss += train_loss
             duration = time.time() - start_batch
             print(f"batch {i_batch+1}/{len(train_loader)}: training_loss={train_loss} (duration: {duration:.2f}s)")
-            writer.add_scalar("Loss/train_batch_mr_loss", train_loss, epoch * len(train_loader) + i_batch)
+            writer.add_scalar("Loss/train_batch_triplet_loss", train_loss, epoch * len(train_loader) + i_batch)
             
             # Backpropagation
             optimizer.zero_grad()
             train_loss.backward()
             optimizer.step()
             
-        writer.add_scalar("Loss/train_mr_loss", epoch_train_loss/len(train_loader), epoch)
-        
+        writer.add_scalar("Loss/train_triplet_loss", epoch_train_loss/len(train_loader), epoch)
         
         # Epoch Validation
         val_losses = 0
         model.eval()  # Switch to model eval mode
         start_batch = time.time()
-        for i_batch, batch in enumerate(val_loader):
-            batch = batch.to(device)
+        for i_batch, (query, positive, negative) in enumerate(val_loader):
             with torch.no_grad():
                 
                 # Tokenize and get embeddings
@@ -111,18 +105,20 @@ def train(cfg_path: str, data_path: str, output_dir: str, device: str):
                 negative_emb = model(**negative_inputs).last_hidden_state.mean(dim=1)
                 
                 # Compute loss
-                pos_sim = F.cosine_similarity(query_emb, positive_emb, dim=-1)
-                neg_sim = F.cosine_similarity(query_emb, negative_emb, dim=-1)
-
-                val_loss = torch.nn.functional.margin_ranking_loss(pos_sim, neg_sim, target=torch.ones_like(pos_sim), margin=0.1)
-                
+                val_loss = F.triplet_margin_loss(query_emb, positive_emb, negative_emb, **cfg.TRAIN.LOSS)
                 duration = time.time() - start_batch
                 print(f"batch {i_batch + 1}/{len(val_loader)}: validation_loss={val_loss} (duration: {duration:.2f}s)")
-                writer.add_scalar("Loss/val_batch_mr_loss", val_loss, epoch * len(val_loader) + i_batch)
+                writer.add_scalar("Loss/val_batch_triplet_loss", val_loss, epoch * len(val_loader) + i_batch)
                 val_losses += val_loss
                 
             start_batch = time.time()
-        writer.add_scalar("Loss/train_mr_loss", val_losses/len(val_loader), epoch)
+        writer.add_scalar("Loss/val_triplet_loss", val_losses/len(val_loader), epoch)
+        
+        # Save the model each cfg.TRAIN.SAVE_MODEL_PERIOD epochs
+        if epoch % cfg.TRAIN.SAVE_MODEL_PERIOD == 0:
+            model.save_pretrained(model_path)
+        
+        model.train()
 
 
 if __name__ == "__main__":
