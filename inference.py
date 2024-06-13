@@ -26,12 +26,12 @@ def get_embeddings(text_list, tokenizer, model, batch_size: int = 8, device: str
     return ret
 
 
-def do_zero_shot(tokenizer, model, df, batch_size, device: str = 'cpu'):
-    print("\n[do_zero_shot] - Processing query embeddings...")
+def encode_all(tokenizer, model, df, batch_size, device: str = 'cpu'):
+    print("\n[encode_all] - Processing query embeddings...")
     query_embeddings = get_embeddings(df['query'].tolist(), tokenizer, model, batch_size, device)
-    print("\n[do_zero_shot] - Processing positives embeddings...")
+    print("\n[encode_all] - Processing positives embeddings...")
     positive_embeddings = get_embeddings(df['pos'].tolist(), tokenizer, model, batch_size, device)
-    print("\n[do_zero_shot] - Processing negatives embeddings...")
+    print("\n[encode_all] - Processing negatives embeddings...")
     negative_embeddings = get_embeddings(df['negative'].tolist(), tokenizer, model, batch_size, device)
     return query_embeddings, positive_embeddings, negative_embeddings
 
@@ -54,7 +54,7 @@ if __name__ == "__main__":
     model = AutoModel.from_pretrained(cfg.MODEL.MODEL_NAME).to(args.device)
     
     dataset = PatentDataset(args.data_path)
-    query_embeddings, positive_embeddings, negative_embeddings = do_zero_shot(tokenizer, model, dataset.df,
+    query_embeddings, positive_embeddings, negative_embeddings = encode_all(tokenizer, model, dataset.df,
                                                                               cfg.DATA.BATCH_SIZE, args.device)
     metrics = compute_metrics(query_embeddings, positive_embeddings, negative_embeddings)
     print("metrics = ", metrics)
