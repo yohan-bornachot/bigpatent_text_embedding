@@ -1,5 +1,7 @@
 import pickle
 from argparse import ArgumentParser
+import os
+import numpy as np
 
 import torch
 import yaml
@@ -70,7 +72,7 @@ if __name__ == "__main__":
         split_val = int(np.floor((train_ratio + val_ratio) * len(dataset)))
         train_indices, val_indices = indices[:split_train], indices[split_train: split_val]
         test_indices = indices[split_val:]
-        with open(os.path.join(os.path.dirname(data_path), "indices_split.pkl"), 'wb') as pkl_file:
+        with open(os.path.join(os.path.dirname(args.data_path), "indices_split.pkl"), 'wb') as pkl_file:
             indices_dict = {"train_indices": train_indices, "val_indices": val_indices,
                             "test_indices": test_indices}
             pickle.dump(indices_dict, pkl_file)
