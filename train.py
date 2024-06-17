@@ -46,14 +46,20 @@ def train(cfg_path: str, data_path: str, output_dir: str, device: str, model_cac
     
     # Create the dataset and dataloader
     dataset = PatentDataset(data_path)
-    indices = list(range(len(dataset)))
-    train_ratio, val_ratio = cfg.TRAIN.TRAIN_VAL_SPLIT
-    split_train = int(np.floor(train_ratio * len(dataset)))
-    split_val = int(np.floor((train_ratio + val_ratio) * len(dataset)))
-    train_indices, val_indices = indices[:split_train], indices[split_train: split_val]
-    with open(os.path.join(os.path.dirname(data_path), "indices_split.pkl"), 'wb') as pkl_file:
-        indices_dict = {"train_indices": train_indices, "val_indices": val_indices, "test_indices": indices[split_val:]}
-        pickle.dump(indices_dict, pkl_file)
+
+    split_path = os.path.join(args.data_path, "indices_split.pkl")
+    if os.path.exists(split_path) and not cfg.TRAIN.FORCE_NEW_SPLIT:
+        with open(split_path, 'rb') as pkl_file:
+            train_indices, val_indices, _ = pickle.load(pkl_file).values()
+    else:
+        indices = list(range(len(dataset)))
+        train_ratio, val_ratio = cfg.TRAIN.TRAIN_VAL_SPLIT
+        split_train = int(np.floor(train_ratio * len(dataset)))
+        split_val = int(np.floor((train_ratio + val_ratio) * len(dataset)))
+        train_indices, val_indices = indices[:split_train], indices[split_train: split_val]
+        with open(os.path.join(os.path.dirname(data_path), "indices_split.pkl"), 'wb') as pkl_file:
+            indices_dict = {"train_indices": train_indices, "val_indices": val_indices, "test_indices": indices[split_val:]}
+            pickle.dump(indices_dict, pkl_file)
     train_sampler = SubsetRandomSampler(train_indices, torch_gen)
     val_sampler = SubsetRandomSampler(val_indices, torch_gen)
     train_loader = DataLoader(dataset, cfg.TRAIN.BATCH_SIZE, sampler=train_sampler, num_workers=2)
@@ -120,7 +126,7 @@ def train(cfg_path: str, data_path: str, output_dir: str, device: str, model_cac
         
         # Save the model each cfg.TRAIN.SAVE_MODEL_PERIOD epochs
         if epoch % cfg.TRAIN.SAVE_MODEL_PERIOD == 0:
-            model.save_pretrained(model_path)
+            model.save_pretrained(model_path, filename_prefix=f"epoch_{epoch}_")
         
         model.train()
 
@@ -135,6 +141,5 @@ if __name__ == "__main__":
     parser.add_argument("--cache_dir", "-m", type=str, required=False, help="Directory where to cache models "
                                                                             "when loading from HuggingFace")
     args = parser.parse_args()
-    
     train(args.cfg_path, args.data_path, args.output_dir, args.device, args.cache_dir)
     
